@@ -21,10 +21,20 @@ let pool = mysql2.createPool({
 const cors = require('cors');
 app.use(cors());
 
-app.get('/', (req, res, next) => {
+app.get('/', async (req, res, next) => {
   console.log('這裡是首頁 2', req.mfee31, req.dt);
-  res.send('Hello Express 9');
+  let [data] = await pool.query('SELECT * FROM product JOIN users ON product.id = users.users_id ORDER BY RAND() LIMIT 1');
+  res.json(data);
 });
+
+
+app.get('/cart', async (req, res, next) => {
+  console.log('這裡是 /cart');
+  let [data] = await pool.query('SELECT * FROM product JOIN user_order ON product.id = user_order.product_id ORDER BY RAND() LIMIT 1');
+  res.json(data);
+
+});
+
 
 app.get('/product', async (req, res, next) => {
   console.log('這裡是 /product');
@@ -40,16 +50,16 @@ app.get('/product/:productId', async (req, res, next) => {
   res.json(data);
 });
 
-app.get('/sellers', async (req, res, next) => {
-  console.log('這裡是 /sellers');
-  let [data] = await pool.query('SELECT * FROM sellers');
+app.get('/users', async (req, res, next) => {
+  console.log('這裡是 /users');
+  let [data] = await pool.query('SELECT * FROM users');
   res.json(data);
 });
 
-app.get('/sellers/:sellersId', async (req, res, next) => {
-  console.log('/sellers/:sellersId => ', req.params.spaceId);
-  let [data] = await pool.query('SELECT * FROM sellers WHERE sellers_id=? ', [
-    req.params.sellersId,
+app.get('/users/:usersId', async (req, res, next) => {
+  console.log('/users/:usersId => ', req.params.spaceId);
+  let [data] = await pool.query('SELECT * FROM users WHERE users_id=? ', [
+    req.params.usersId,
   ]);
   res.json(data);
 });

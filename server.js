@@ -90,6 +90,20 @@ app.get('/space/:spaceId', async (req, res, next) => {
   res.json(data);
 });
 
+app.get('/artist', async (req, res, next) => {
+  console.log('這裡是 /artist');
+  let [data] = await pool.query('SELECT * FROM users WHERE users_valid_role=1');
+  res.json(data);
+});
+
+app.get('/artist/:artistId', async (req, res, next) => {
+  console.log('/artist/:artistId => ', req.params.artistId);
+  let [data] = await pool.query('SELECT * FROM users WHERE users_id=? ', [
+    req.params.artistId,
+  ]);
+  res.json(data);
+});
+
 app.listen(3001, () => {
   console.log('Server running at port 3001');
 });

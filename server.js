@@ -3,7 +3,7 @@ const expressSession = require("express-session");
 // https://www.npmjs.com/package/session-file-store
 const FileStore = require("session-file-store")(expressSession);
 const path = require("path");
-
+const multer = require('multer');
 const express = require("express");
 const app = express();
 
@@ -64,7 +64,7 @@ app.get("/cart", async (req, res, next) => {
 // 商品頁
 app.get("/product", async (req, res, next) => {
     console.log("這裡是 /product");
-    let [data] = await pool.query("SELECT * FROM product");
+    let [data] = await pool.query("SELECT * FROM product ");
     res.json(data);
 });
 // 商品頁細節
@@ -73,6 +73,12 @@ app.get("/product/:productId", async (req, res, next) => {
     let [data] = await pool.query("SELECT * FROM product WHERE id=? ", [
         req.params.productId,
     ]);
+    res.json(data);
+});
+//您可能會喜歡頁
+app.get("/maybelike", async (req, res, next) => {
+    console.log("這裡是 /maybelike");
+    let [data] = await pool.query("SELECT * FROM product ORDER BY RAND() LIMIT 0,5 ");
     res.json(data);
 });
 // 所有使用者資料
@@ -161,6 +167,7 @@ app.use((req, res, next) => {
     const cors = require("cors");
     app.use(cors());
 });
+
 
 app.listen(3001, () => {
     console.log("Server running at port 3001");

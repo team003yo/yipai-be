@@ -75,7 +75,7 @@ const registerRules = [
     .withMessage('驗證密碼不符合'),
 ];
 
-// /api/auth/register 註冊網址
+// /api/auth/register 買家註冊網址
 router.post('/register', uploader.single('photo'), registerRules, async (req, res, next) => {
   console.log('I am register', req.body, req.file);
 
@@ -126,7 +126,57 @@ router.post('/register', uploader.single('photo'), registerRules, async (req, re
     member_id: result[0].insertId,
   });
 });
+// /api/auth/Artregister 賣家註冊網址
+router.post('/Artregister', uploader.single('photo'), registerRules, async (req, res, next) => {
+  console.log('I am register', req.body, req.file);
 
+  //TODO:async/await 應該要有 try-catch 去做錯誤處理
+
+  // 處理驗證的結果
+  const validateResult = validationResult(req);
+  console.log(validateResult);
+  if (!validateResult.isEmpty()) {
+    // validateResult 不是空的 -> 表示有錯誤
+    return res.status(400).json({ errors: validateResult.array() });
+    // early return
+  }
+
+  // 驗證通過
+  // 檢查 帳號名稱 是否已經註冊過
+  let [members] = await pool.execute('SELECT * FROM users WHERE users_account = ?', [req.body.account]);
+  if (members.length > 0) {
+    // 表示這個 帳號 存在資料庫中
+    // 如果已經註冊過，就回覆 400
+    console.log('帳號已經註冊過');
+    return res.status(400).json({
+      errors: [
+        {
+          msg: '帳號已經註冊過',
+          param: 'account',
+        },
+      ],
+    });
+  }
+
+  // 雜湊 hash 密碼
+  // const hashedPassword = await argon2.hash(req.body.password);
+
+  // 存到資料庫
+  // 允許使用者不上傳圖片，所以要先檢查一下使用者到底有沒有上傳
+  const filename = req.file ? path.join('uploads', req.file.filename) : '';
+  // 雜湊後的密碼存入
+  // let result = await pool.execute('INSERT INTO users (users_account, users_password, users_name, user_imageHead) VALUES (?, ?, ?, ?);', [req.body.account, hashedPassword, req.body.name, filename]);
+  
+  // 還沒雜湊的密碼上傳
+  let result = await pool.execute('INSERT INTO users (users_account, users_password, users_name, user_imageHead,users_valid_role) VALUES (?, ?, ?, ?, ?);', [req.body.account, req.body.password, req.body.name, filename, 1]);
+  console.log('register: insert to db', result);
+
+  // 回覆給前端
+  res.json({
+    account: req.body.account,
+    member_id: result[0].insertId,
+  });
+});
 // /api/auth/login 處理登入的網址
 router.post('/login', async (req, res, next) => {
   // 確認 email 是否存在
@@ -144,15 +194,17 @@ router.post('/login', async (req, res, next) => {
       ],
     });
   }
-
+  // console.log(members);
   // 只是從陣列中拿出資料而已
   let member = members[0];
 
   // 如果存在，比對密碼
-  let result = await argon2.verify(member.password, req.body.password);
+  // let result = await argon2.verify(member.password, req.body.password);
+  let result = await (member.users_password===req.body.password);
   if (result === false) {
     // 密碼比對失敗
     // 密碼錯誤，回覆前端 401
+    console.log('帳號或密碼錯誤');
     return res.status(401).json({
       errors: [
         {
@@ -167,13 +219,14 @@ router.post('/login', async (req, res, next) => {
   // 能執行到這裡，表示帳號存在，且密碼正確
 
   //寫入 session
-  // 準備好要寫進 session 的內容
   let retMember = {
-    id: member.id,
-    name: member.name,
-    account:member.account,
-    email: member.password,
-    // photo: member.photo,
+    users_id: member.users_id,
+    users_name: member.users_name,
+    users_account: member.users_account,
+    // users_phone: member.users_phone,
+    // users_email: member.users_email,
+    users_valid: member.users_valid,
+    users_valid_role: member.users_valid_role,
   };
   // 寫入 session
   req.session.member = retMember;
@@ -183,12 +236,15 @@ router.post('/login', async (req, res, next) => {
     msg: 'ok',
     member: retMember,
   });
+  console.log('登入成功！');
 });
 
-// 登出
+// 登出 http://localhost:3000/api/auth/logout
 router.get('/logout', (req, res, next) => {
   req.session.member = null;
   res.sendStatus(202);
+  console.log('登出成功！');
+
 });
 
 module.exports = router;

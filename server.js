@@ -1,9 +1,10 @@
-// https://www.npmjs.com/package/express-session
+// 安裝expressSession套件 https://www.npmjs.com/package/express-session
 const expressSession = require("express-session");
-// https://www.npmjs.com/package/session-file-store
+// 安裝session-file-store套件 https://www.npmjs.com/package/session-file-store
 const FileStore = require("session-file-store")(expressSession);
 const path = require("path");
-const multer = require('multer');
+const { checkLogin } = require("./middlewares/authMiddleware");
+
 const express = require("express");
 const app = express();
 
@@ -15,9 +16,7 @@ const pool = require("./utils/db");
 const cors = require("cors");
 app.use(
     cors({
-        // 為了讓 browser 在 CORS 的情況下還是幫我們送 cookie
-        // 必須把 credentails 設定成 true
-        // 但是，當你把 credentials 設定成 true，就一定要設定 origin (來源)
+        // 必須把 credentails 設定成 true，一定要設定 origin (來源)
         origin: ["http://localhost:3000"],
         credentials: true,
     })
@@ -33,7 +32,6 @@ app.use(
         }),
         secret: process.env.SESSION_SECRET,
         // true: 即使 session 沒有改變也重新儲存一次
-        // 取決於你用的 storage 是有時效性的，可能需要不停地刷新這個時效
         resave: false,
         // true: 還沒有正式初始化的 session 也真的存起來
         saveUninitialized: false,
@@ -47,12 +45,26 @@ app.use(
 
 // 首頁
 app.get("/", async (req, res, next) => {
-    console.log("這裡是首頁 2");
+    console.log("這裡是藝拍首頁,顯示首頁資料");
     let [data] = await pool.query(
-        "SELECT * FROM product JOIN users ON product.id = users.users_id ORDER BY RAND() LIMIT 1"
+        "SELECT * FROM users JOIN user_order ON users.users_id = user_order.user_id JOIN product ON product.id = user_order.product_id LIMIT 1"
     );
     res.json(data);
 });
+//訂單送出請求
+app.post("/submitOrder", async (req, res) => {
+    const { userName, productId, orderDate } = req.body;
+    try {
+      const [result] = await pool.query(
+        "INSERT INTO user_order (user_id, product_id, order_date) VALUES ((SELECT users_id FROM users WHERE users_name = ?), ?, ?)",
+        [userName, productId, orderDate]
+      );
+      res.json({ status: "success", result });
+    } catch (error) {
+      res.json({ status: "error", error });
+    }
+  });
+
 // 購物車
 app.get("/cart", async (req, res, next) => {
     console.log("這裡是 /cart");
@@ -61,10 +73,15 @@ app.get("/cart", async (req, res, next) => {
     );
     res.json(data);
 });
+app.get("/maybelike", async (req, res, next) => {
+    console.log("這裡是 /maybelike");
+    let [data] = await pool.query("SELECT * FROM product ORDER BY RAND() LIMIT 0,5 ");
+    res.json(data);
+});
 // 商品頁
 app.get("/product", async (req, res, next) => {
     console.log("這裡是 /product");
-    let [data] = await pool.query("SELECT * FROM product ");
+    let [data] = await pool.query("SELECT * FROM product");
     res.json(data);
 });
 // 商品頁細節
@@ -75,39 +92,34 @@ app.get("/product/:productId", async (req, res, next) => {
     ]);
     res.json(data);
 });
-//您可能會喜歡頁
-app.get("/maybelike", async (req, res, next) => {
-    console.log("這裡是 /maybelike");
-    let [data] = await pool.query("SELECT * FROM product ORDER BY RAND() LIMIT 0,5 ");
-    res.json(data);
-});
 // 所有使用者資料
 app.get("/users", async (req, res, next) => {
     console.log("這裡是 /users");
     let [data] = await pool.query("SELECT * FROM users");
     res.json(data);
 });
-// 查詢使用者資料
+//
 app.get("/news/:newsId", async (req, res, next) => {
-    console.log("/news/:newsId => ", req.params.spaceId);
+    console.log("/news/:newsId => ", req.params.newsId);
     let [data] = await pool.query("SELECT * FROM news WHERE news_id=? ", [
         req.params.newsId,
     ]);
     res.json(data);
 });
 // 會員部分路由
-app.get("/api", (req, res, next) => {
-    res.json({
-        name: "Cola",
-        account: "cola0098",
-        password: "12345",
-        confirmPassword: "12345",
-    });
+app.get("/api", checkLogin, async (req, res, next) => {
+    // if(req.session.member){
+    console.log(req.session.member);
+    let [data] = await pool.query("SELECT * FROM users WHERE users_id=? ", [
+        req.session.member.id,
+    ]);
+    res.json(data);
 });
 // 授權路由
 const authRouter = require("./routers/authRouter");
 app.use("/api/auth", authRouter);
-// 會員路由
+
+// 會員登入路由
 const memberRouter = require("./routers/memberRouter");
 app.use("/api/members", memberRouter);
 
@@ -119,6 +131,23 @@ app.get("/users/:usersId", async (req, res, next) => {
     ]);
     res.json(data);
 });
+// 更改會員資料
+app.put("/users/:usersId", async (req, res, next) => {
+    console.log("/users/:usersId TO upload ", req.params.usersId);
+    let [data] = await pool.query(
+        `UPDATE users SET users_name = ? , users_account = ? , users_email = ? ,users_phone = ? WHERE users_id = ?`,
+        [
+            req.body.username,
+            req.body.account,
+            req.body.email,
+            req.body.phone,
+            req.body.usersId,
+        ]
+    );
+    console.log(req.body);
+    res.json(data);
+});
+
 // 展覽消息
 app.get("/news", async (req, res, next) => {
     console.log("這裡是 /news");
@@ -126,7 +155,7 @@ app.get("/news", async (req, res, next) => {
     res.json(data);
 });
 app.get("/news/:newsId", async (req, res, next) => {
-    console.log("/news/:newsId => ", req.params.spaceId);
+    console.log("/news/:newsId => ", req.params.newsId);
     let [data] = await pool.query("SELECT * FROM news WHERE news_id=? ", [
         req.params.newsId,
     ]);
@@ -155,9 +184,10 @@ app.get("/artist", async (req, res, next) => {
 });
 app.get("/artist/:artistId", async (req, res, next) => {
     console.log("/artist/:artistId => ", req.params.artistId);
-    let [data] = await pool.query("SELECT * FROM users WHERE users_valid_role=1 AND users_id=? ", [
-        req.params.artistId,
-    ]);
+    let [data] = await pool.query(
+        "SELECT * FROM users WHERE users_valid_role=1 AND users_id=? ",
+        [req.params.artistId]
+    );
     res.json(data);
 });
 
@@ -167,7 +197,6 @@ app.use((req, res, next) => {
     const cors = require("cors");
     app.use(cors());
 });
-
 
 app.listen(3001, () => {
     console.log("Server running at port 3001");

@@ -240,11 +240,13 @@ router.post('/login', async (req, res, next) => {
   console.log('登入成功！');
 });
 
-// 登出 http://localhost:3000/api/auth/logout
+// 登出 http://localhost:3001/api/auth/logout
 router.get('/logout', (req, res, next) => {
   req.session.member = null;
   res.sendStatus(202);
   console.log('登出成功！');
+  
+  
 
 });
 

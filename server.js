@@ -110,7 +110,7 @@ app.get("/news/:newsId", async (req, res, next) => {
 app.get("/api", checkLogin, async (req, res, next) => {
     // if(req.session.member){
     console.log(req.session.member);
-    let [data] = await pool.query("SELECT * FROM users WHERE users_id=? ", [
+    let [data] = await pool.query("SELECT * FROM users WHERE users_id=?", [
         req.session.member.id,
     ]);
     res.json(data);
@@ -156,7 +156,7 @@ app.get("/news", async (req, res, next) => {
 });
 app.get("/news/:newsId", async (req, res, next) => {
     console.log("/news/:newsId => ", req.params.newsId);
-    let [data] = await pool.query("SELECT * FROM news WHERE news_id=? ", [
+    let [data] = await pool.query("SELECT * FROM news WHERE news_id=?", [
         req.params.newsId,
     ]);
     res.json(data);

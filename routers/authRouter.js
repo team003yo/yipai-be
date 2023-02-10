@@ -181,7 +181,68 @@ router.post('/Artregister', uploader.single('photo'), registerRules, async (req,
 // /api/auth/login 處理登入的網址
 router.post('/login', async (req, res, next) => {
   // 確認 email 是否存在
-  let [members] = await pool.execute('SELECT * FROM users WHERE users_account = ?', [req.body.account]);
+  let [members] = await pool.execute('SELECT * FROM users WHERE users_account = ? AND users_valid_role=0 ', [req.body.account]);
+  if (members.length === 0) {
+    // 表示這個 account 不存在資料庫中 -> 沒註冊過
+    // 不存在，就回覆 401
+    return res.status(401).json({
+      errors: [
+        {
+          // msg: 'account 尚未註冊',
+          // param: 'email',
+          msg: '帳號或密碼錯誤',
+        },
+      ],
+    });
+  }
+  // console.log(members);
+  // 只是從陣列中拿出資料而已
+  let member = members[0];
+
+  // 如果存在，比對密碼
+  // let result = await argon2.verify(member.password, req.body.password);
+  let result = await (member.users_password===req.body.password);
+  if (result === false) {
+    // 密碼比對失敗
+    // 密碼錯誤，回覆前端 401
+    console.log('帳號或密碼錯誤');
+    return res.status(401).json({
+      errors: [
+        {
+          // msg: '密碼錯誤',
+          // param: 'password',
+          msg: '帳號或密碼錯誤',
+        },
+      ],
+    });
+  }
+
+  // 能執行到這裡，表示帳號存在，且密碼正確
+
+  //寫入 session
+  let retMember = {
+    users_id: member.users_id,
+    users_name: member.users_name,
+    users_account: member.users_account,
+    // users_phone: member.users_phone,
+    // users_email: member.users_email,
+    users_valid: member.users_valid,
+    users_valid_role: member.users_valid_role,
+  };
+  // 寫入 session
+  req.session.member = retMember;
+
+  // 回覆前端
+  res.json({
+    msg: 'ok',
+    member: retMember,
+  });
+  console.log('登入成功！');
+});
+// /api/auth/artistLogin 處理登入的網址
+router.post('/artistLogin', async (req, res, next) => {
+  // 確認 email 是否存在
+  let [members] = await pool.execute('SELECT * FROM users WHERE users_account = ? AND users_valid_role=1 ', [req.body.account]);
   if (members.length === 0) {
     // 表示這個 account 不存在資料庫中 -> 沒註冊過
     // 不存在，就回覆 401

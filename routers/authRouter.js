@@ -113,12 +113,12 @@ router.post('/register', uploader.single('photo'), registerRules, async (req, re
 
   // 存到資料庫
   // 允許使用者不上傳圖片，所以要先檢查一下使用者到底有沒有上傳
-  const filename = req.file ? path.join('uploads', req.file.filename) : '';
+  // const filename = req.file ? path.join('uploads', req.file.filename) : '';
   // 雜湊後的密碼存入
-  // let result = await pool.execute('INSERT INTO users (users_account, users_password, users_name, user_imageHead) VALUES (?, ?, ?, ?);', [req.body.account, hashedPassword, req.body.name, filename]);
+  // let result = await pool.execute('INSERT INTO users (users_account, users_password, users_name) VALUES (?, ?, ?);', [req.body.account, hashedPassword, req.body.name]);
   
   // 還沒雜湊的密碼上傳
-  let result = await pool.execute('INSERT INTO users (users_account, users_password, users_name, user_imageHead) VALUES (?, ?, ?, ?);', [req.body.account, req.body.password, req.body.name, filename]);
+  let result = await pool.execute('INSERT INTO users (users_account, users_password, users_name,users_valid_role) VALUES (?, ?, ?, ?);', [req.body.account, req.body.password, req.body.name,0]);
   console.log('register: insert to db', result);
 
   // 回覆給前端
@@ -164,12 +164,12 @@ router.post('/Artregister', uploader.single('photo'), registerRules, async (req,
 
   // 存到資料庫
   // 允許使用者不上傳圖片，所以要先檢查一下使用者到底有沒有上傳
-  const filename = req.file ? path.join('uploads', req.file.filename) : '';
+  // const filename = req.file ? path.join('uploads', req.file.filename) : '';
   // 雜湊後的密碼存入
   // let result = await pool.execute('INSERT INTO users (users_account, users_password, users_name, user_imageHead) VALUES (?, ?, ?, ?);', [req.body.account, hashedPassword, req.body.name, filename]);
   
   // 還沒雜湊的密碼上傳
-  let result = await pool.execute('INSERT INTO users (users_account, users_password, users_name, user_imageHead,users_valid_role) VALUES (?, ?, ?, ?, ?);', [req.body.account, req.body.password, req.body.name, filename, 1]);
+  let result = await pool.execute('INSERT INTO users (users_account, users_password, users_name, users_valid_role) VALUES (?, ?, ?, ?);', [req.body.account, req.body.password, req.body.name, 1]);
   console.log('register: insert to db', result);
 
   // 回覆給前端
@@ -178,10 +178,10 @@ router.post('/Artregister', uploader.single('photo'), registerRules, async (req,
     member_id: result[0].insertId,
   });
 });
-// /api/auth/login 處理登入的網址
-router.post('/login', async (req, res, next) => {
+// /api/auth/Buylogin 處理買家登入的網址
+router.post('/Buylogin', async (req, res, next) => {
   // 確認 email 是否存在
-  let [members] = await pool.execute('SELECT * FROM users WHERE users_account = ? AND users_valid_role=0 ', [req.body.account]);
+  let [members] = await pool.execute('SELECT * FROM users WHERE users_valid_role=0 AND users_account = ?', [req.body.account]);
   if (members.length === 0) {
     // 表示這個 account 不存在資料庫中 -> 沒註冊過
     // 不存在，就回覆 401
@@ -237,12 +237,13 @@ router.post('/login', async (req, res, next) => {
     msg: 'ok',
     member: retMember,
   });
-  console.log('登入成功！');
+  console.log('使用者登入成功！');
 });
-// /api/auth/artistLogin 處理登入的網址
-router.post('/artistLogin', async (req, res, next) => {
+
+// /api/auth/Artistlogin 處理賣家登入的網址
+router.post('/Artistlogin', async (req, res, next) => {
   // 確認 email 是否存在
-  let [members] = await pool.execute('SELECT * FROM users WHERE users_account = ? AND users_valid_role=1 ', [req.body.account]);
+  let [members] = await pool.execute('SELECT * FROM users WHERE users_valid_role=1 AND users_account = ?', [req.body.account]);
   if (members.length === 0) {
     // 表示這個 account 不存在資料庫中 -> 沒註冊過
     // 不存在，就回覆 401
@@ -298,16 +299,16 @@ router.post('/artistLogin', async (req, res, next) => {
     msg: 'ok',
     member: retMember,
   });
-  console.log('登入成功！');
+  console.log('藝術家登入成功！');
 });
+
+
 
 // 登出 http://localhost:3001/api/auth/logout
 router.get('/logout', (req, res, next) => {
   req.session.member = null;
   res.sendStatus(202);
   console.log('登出成功！');
-  
-  
 
 });
 
